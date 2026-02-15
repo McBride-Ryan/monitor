@@ -271,7 +271,21 @@
 - Added "Data Audits" to navbar
 - 11 tests: page render, filtering, pagination, resolve action, summary stats
 
-**Commit:** Pending
+**Commit:** c2e51c1
+
+---
+
+## Phase 2: Cross-Category Audit Engine — ✅ COMPLETE
+
+All 6 tasks complete:
+- 2.1: Audit Logs + ERP Simulation Tables
+- 2.2: Price Discrepancy Watchdog
+- 2.3: Asset Health Check
+- 2.4: Categorization Audit
+- 2.5: Audit Scheduling
+- 2.6: Audit Dashboard Frontend
+
+**Total Phase 2:** 4 services, 1 command, 4 migrations, 4 models, scheduled task, full frontend dashboard
 
 ---
 
