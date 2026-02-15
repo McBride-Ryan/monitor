@@ -10,6 +10,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             TransactionSeeder::class,
+            AttributeNormalizationSeeder::class,
         ]);
     }
 }
