@@ -248,5 +248,32 @@
 
 ---
 
+### 2.6 — Audit Dashboard Frontend
+**Files:**
+- `app/Http/Controllers/AuditController.php`
+- `routes/web.php` (modified)
+- `resources/js/types/audit.ts`
+- `resources/js/Pages/AuditDashboard.tsx`
+- `resources/js/components/AuditSummaryCards.tsx`
+- `resources/js/components/AuditExceptionTable.tsx`
+- `resources/js/components/AppLayout.tsx` (modified - added Audits nav link)
+- `tests/Feature/AuditControllerTest.php`
+
+**Summary:**
+- AuditController: index (paginated + filtered logs + summary stats), resolve endpoint
+- Routes: GET /audits, POST /audits/{log}/resolve
+- TypeScript types: DataAuditLog, AuditSummary, AuditFilters, PaginatedLogs
+- AuditDashboard page: filters + summary cards + exception table
+- AuditSummaryCards: unresolved count, by severity, by type
+- AuditExceptionTable: PrimeReact DataTable with severity badges, filters (severity/type/resolved), pagination, resolve button
+- Filters: severity (critical/warning/info), type (price/asset/categorization), resolved status
+- Default: shows unresolved only, 25 per page
+- Added "Data Audits" to navbar
+- 11 tests: page render, filtering, pagination, resolve action, summary stats
+
+**Commit:** Pending
+
+---
+
 ## Test Results
 All tests passing: 57 tests, 97 assertions

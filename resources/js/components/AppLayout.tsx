@@ -12,6 +12,7 @@ export default function AppLayout({ children, title }: Props) {
     const navItems = [
         { href: '/', label: 'Transactions' },
         { href: '/vendor-import', label: 'Vendor Import' },
+        { href: '/audits', label: 'Data Audits' },
     ];
 
     return (
