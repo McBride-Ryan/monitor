@@ -110,3 +110,67 @@ cp .env.example .env && ./vendor/bin/sail up -d && ./vendor/bin/sail artisan mig
 3. Ensure strict TypeScript types for all Brand and Transaction objects.
 
 ---
+
+## Implementation Summary
+
+### Components Built
+| Component | Purpose |
+|---|---|
+| `app.tsx` | Inertia client entry, PrimeReact CSS imports |
+| `ssr.tsx` | Inertia SSR entry |
+| `echo.ts` | Laravel Echo / Reverb WebSocket client |
+| `useTransactions.ts` | Hook: WebSocket listener, live prepend to state |
+| `useConnectionStatus.ts` | Hook: Reverb connection health (connected/connecting/disconnected) |
+| `Dashboard.tsx` | Page: passes initial transactions to dashboard |
+| `TransactionDashboard.tsx` | Main layout: header, sidebar filters, summary cards, table |
+| `TransactionTable.tsx` | PrimeReact DataTable: paginated, sortable, formatted |
+| `FilterSidebar.tsx` | Dropdown (account_type) + MultiSelect (brand) filters |
+| `TotalSumCard.tsx` | Memoized sum of filtered transactions |
+| `BrandSummaryCard.tsx` | Memoized brand grouping with counts + totals |
+| `ConnectionStatusBanner.tsx` | Live/connecting/disconnected indicator |
+
+## File Structure (created/modified)
+```
+compose.yaml                          # added Reverb port
+.env                                  # Reverb + broadcasting config
+app/Models/Transaction.php            # fillable, casts, hasMany logs
+app/Models/TransactionLog.php         # fillable, casts, belongsTo
+app/Observers/TransactionObserver.php # auto-create log on txn create
+app/Providers/AppServiceProvider.php  # register observer
+app/Events/TransactionCreated.php     # ShouldBroadcastNow + Dispatchable
+app/Console/Commands/SimulateTransactions.php
+database/migrations/*_create_transactions_table.php
+database/migrations/*_create_transaction_logs_table.php
+database/factories/TransactionFactory.php
+database/seeders/TransactionSeeder.php
+database/seeders/DatabaseSeeder.php
+bootstrap/app.php                     # Inertia middleware
+routes/web.php                        # Inertia Dashboard route
+resources/views/app.blade.php         # Inertia root template
+resources/css/app.css                 # Tailwind config
+resources/js/app.tsx
+resources/js/ssr.tsx
+resources/js/echo.ts
+resources/js/types/transaction.ts
+resources/js/types/global.d.ts
+resources/js/hooks/useTransactions.ts
+resources/js/hooks/useConnectionStatus.ts
+resources/js/components/TransactionDashboard.tsx
+resources/js/components/TransactionTable.tsx
+resources/js/components/FilterSidebar.tsx
+resources/js/components/TotalSumCard.tsx
+resources/js/components/BrandSummaryCard.tsx
+resources/js/components/ConnectionStatusBanner.tsx
+resources/js/Pages/Dashboard.tsx
+vite.config.ts
+tsconfig.json
+```
+
+## How to Run
+```bash
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan reverb:start        # terminal 1
+./vendor/bin/sail npm run dev                 # terminal 2
+./vendor/bin/sail artisan app:simulate-transactions  # terminal 3
+# Open http://localhost
+```
