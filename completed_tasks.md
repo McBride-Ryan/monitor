@@ -121,7 +121,7 @@
 - Integrated into Dashboard and VendorImport pages
 - Removed duplicate headers from TransactionDashboard and VendorImport
 
-**Status:** Pending commit
+**Commit:** b39e646
 
 ---
 
