@@ -209,7 +209,7 @@
 - 11 unit tests covering URL validation, alt text checks, stale detection, inactive assets, custom thresholds
 - Tested on seeded data: found 56 issues from 100 products
 
-**Commit:** Pending
+**Commit:** d499e5f
 
 ---
 
