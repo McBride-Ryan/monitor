@@ -176,5 +176,23 @@
 
 ---
 
+### 2.2 — Price Discrepancy Watchdog
+**Files:**
+- `app/Services/Audits/PriceDiscrepancyAudit.php`
+- `app/Console/Commands/RunAuditCommand.php`
+- `tests/Unit/PriceDiscrepancyAuditTest.php`
+
+**Summary:**
+- PriceDiscrepancyAudit service with configurable threshold (default 15%)
+- Detects: cost > MSRP (critical), cost > retail_price (critical), low margin (warning)
+- Creates DataAuditLog entries with details (sku, prices, differences, margins)
+- RunAuditCommand: `audit:run {type}` supports price_discrepancy, all
+- 7 unit tests covering all detection scenarios, null handling, custom thresholds
+- Tested on seeded data: found 20 issues from 100 products
+
+**Commit:** Pending
+
+---
+
 ## Test Results
 All tests passing: 57 tests, 97 assertions
