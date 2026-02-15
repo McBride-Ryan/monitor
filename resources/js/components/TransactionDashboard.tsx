@@ -28,34 +28,28 @@ export default function TransactionDashboard({ initialTransactions }: Props) {
     }, [transactions, accountType, orderOrigins]);
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <h1 className="text-xl font-bold text-gray-900">Transaction Monitor</h1>
-                    <ConnectionStatusBanner status={status} />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="mb-4">
+                <ConnectionStatusBanner status={status} />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Sidebar */}
+                <div className="lg:col-span-1 space-y-6">
+                    <FilterSidebar
+                        accountType={accountType}
+                        onAccountTypeChange={setAccountType}
+                        orderOrigins={orderOrigins}
+                        onOrderOriginsChange={setOrderOrigins}
+                    />
+                    <TotalSumCard transactions={filtered} />
+                    <BrandSummaryCard transactions={filtered} />
                 </div>
-            </header>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    {/* Sidebar */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <FilterSidebar
-                            accountType={accountType}
-                            onAccountTypeChange={setAccountType}
-                            orderOrigins={orderOrigins}
-                            onOrderOriginsChange={setOrderOrigins}
-                        />
-                        <TotalSumCard transactions={filtered} />
-                        <BrandSummaryCard transactions={filtered} />
-                    </div>
-
-                    {/* Main content */}
-                    <div className="lg:col-span-3">
-                        <TransactionTable transactions={filtered} />
-                    </div>
+                {/* Main content */}
+                <div className="lg:col-span-3">
+                    <TransactionTable transactions={filtered} />
                 </div>
-            </main>
-        </div>
+            </div>
+        </main>
     );
 }
