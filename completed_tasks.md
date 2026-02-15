@@ -190,7 +190,7 @@
 - 7 unit tests covering all detection scenarios, null handling, custom thresholds
 - Tested on seeded data: found 20 issues from 100 products
 
-**Commit:** Pending
+**Commit:** 9c7d76c
 
 ---
 
