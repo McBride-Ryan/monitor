@@ -233,5 +233,20 @@
 
 ---
 
+### 2.5 — Audit Scheduling
+**Files:**
+- `routes/console.php` (modified)
+- `tests/Feature/AuditSchedulingTest.php`
+
+**Summary:**
+- Scheduled `audit:run all` to run daily at 2:00 AM
+- Command runs all 3 audits: price_discrepancy, asset_health, categorization
+- Uses Laravel's task scheduler (cron: 0 2 * * *)
+- 4 tests: command scheduled, daily frequency, manual execution, individual audits
+
+**Commit:** Pending
+
+---
+
 ## Test Results
 All tests passing: 57 tests, 97 assertions
