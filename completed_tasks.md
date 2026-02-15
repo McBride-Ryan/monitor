@@ -229,7 +229,7 @@
 - 10 unit tests covering null categories, prefix mismatches, valid categories, edge cases
 - Tested on seeded data: found 5 categorization issues from 100 products
 
-**Commit:** Pending
+**Commit:** a765124
 
 ---
 
