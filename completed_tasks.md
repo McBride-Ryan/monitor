@@ -138,7 +138,7 @@
 - global_parts: PartNumber→sku, Description→name, Color→color, UnitPrice→cost (multiply)
 - Required for vendor import page to function
 
-**Commit:** Pending
+**Commit:** 6942a9d
 
 ---
 
