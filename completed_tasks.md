@@ -213,5 +213,25 @@
 
 ---
 
+### 2.4 — Categorization Audit
+**Files:**
+- `app/Services/Audits/CategorizationAudit.php`
+- `app/Console/Commands/RunAuditCommand.php` (modified)
+- `tests/Unit/CategorizationAuditTest.php`
+
+**Summary:**
+- CategorizationAudit service validates SKU prefix matches category
+- Detects: null/empty categories (warning), SKU prefix mismatch (critical), unrecognized categories (warning)
+- Category prefixes: EL=Electronics, FR=Furniture, CL=Clothing, TL=Tools, HG=Home & Garden
+- Case-insensitive SKU prefix check
+- Creates DataAuditLog entries with details (sku, category, expected prefix)
+- Updated RunAuditCommand to support categorization type
+- 10 unit tests covering null categories, prefix mismatches, valid categories, edge cases
+- Tested on seeded data: found 5 categorization issues from 100 products
+
+**Commit:** Pending
+
+---
+
 ## Test Results
 All tests passing: 57 tests, 97 assertions
