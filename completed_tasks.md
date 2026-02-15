@@ -142,5 +142,39 @@
 
 ---
 
+## Phase 2: Cross-Category Audit Engine (In Progress)
+
+### 2.1 — Audit Logs + ERP Simulation Tables
+**Files:**
+- `database/migrations/*_create_products_table.php`
+- `database/migrations/*_create_inventory_items_table.php`
+- `database/migrations/*_create_product_assets_table.php`
+- `database/migrations/*_create_data_audit_logs_table.php`
+- `app/Models/Product.php`
+- `app/Models/InventoryItem.php`
+- `app/Models/ProductAsset.php`
+- `app/Models/DataAuditLog.php`
+- `database/factories/ProductFactory.php`
+- `database/factories/InventoryItemFactory.php`
+- `database/factories/ProductAssetFactory.php`
+- `database/factories/DataAuditLogFactory.php`
+- `database/seeders/ProductCatalogSeeder.php`
+- `tests/Feature/ProductCatalogTest.php`
+
+**Summary:**
+- Created 4 migrations: products, inventory_items, product_assets, data_audit_logs
+- Product: sku, name, category, brand, vendor_id, cost, msrp, retail_price, status
+- InventoryItem: product_id (FK cascade), warehouse_location, qty_on_hand, qty_committed, ecommerce_status, last_synced_at
+- ProductAsset: product_id (FK cascade), asset_type, url, alt_text, is_active, last_checked_at
+- DataAuditLog: audit_type (indexed), severity (enum), entity_type, entity_id, details (json), resolved_at
+- Models with relationships: Product hasMany InventoryItems/Assets; scopes: unresolved, bySeverity, byType
+- Factories for all 4 models
+- ProductCatalogSeeder: 100 products with intentional issues (10% price mismatches, 5% ghost inventory, 5% broken URLs, 5% miscategorized)
+- 17 tests covering migrations, models, factories, relationships, scopes, seeder
+
+**Commit:** Pending
+
+---
+
 ## Test Results
-All tests passing: 40 tests, 59 assertions
+All tests passing: 57 tests, 97 assertions
