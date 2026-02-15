@@ -1,293 +1,192 @@
-# Completed Tasks
+# Project Status
 
-## Phase 1: Vendor Data Standardization (Complete)
-
-### 1.1 — Vendor Schema Mappings
-**Files:**
-- `database/migrations/*_create_vendor_schema_mappings_table.php`
-- `app/Models/VendorSchemaMapping.php`
-- `database/factories/VendorSchemaMappingFactory.php`
-- `tests/Feature/VendorSchemaMappingTest.php`
-
-**Summary:**
-- Created migration with vendor_name (indexed), vendor_column, erp_column, transform_rule (json)
-- Model with fillable, casts transform_rule→array, `scopeForVendor`
-- Factory for testing
-- 5 tests (migration, factory, cast, scope, unique constraint)
-
-**Commit:** d50de76
+**Branch:** `ryan/dev/hss-002-ERP-Governance-Automation`
+**Tests:** 100 passing (300 assertions)
+**Last updated:** 2026-02-15
 
 ---
 
-### 1.2 — Normalization Lookup
-**Files:**
-- `database/migrations/*_create_attribute_normalizations_table.php`
-- `app/Models/AttributeNormalization.php`
-- `database/seeders/AttributeNormalizationSeeder.php`
-- `tests/Feature/AttributeNormalizationTest.php`
+## Phase 1: Vendor Data Standardization — ✅ COMPLETE
 
-**Summary:**
-- Created migration with attribute_type, raw_value (indexed), normalized_value
-- Model with `scopeForType`
-- Seeder with 37 records (material: SS→STAINLESS_STEEL, etc.; color: BLK→BLACK, etc.; unit: ea→EACH, etc.)
-- 5 tests (migration, seeder, scope, unique constraint)
+| Task | Summary | Commit |
+|------|---------|--------|
+| 1.1 | Vendor Schema Mappings — migration, model, factory, tests | d50de76 |
+| 1.2 | Normalization Lookup — migration, model, seeder (37 records), tests | e9b2e57 |
+| 1.3 | Brand Compliance Rules — migration, model, factory, seeder (4 brands), tests | 6e56c41 |
+| 1.4 | DataStandardizationService — mapVendorRow, normalizeAttribute, validateBrandCompliance | 0acdede |
+| 1.5 | VendorImportController — CSV upload, preview, import + tests | e7a59bc |
+| 1.6 | Frontend — VendorImport.tsx, SchemaMappingEditor, ImportPreviewTable, vendor.ts | 38fac5f |
 
-**Commit:** e9b2e57
+**Other Phase 1 commits:**
+- b39e646: AppLayout navbar (Transactions + Vendor Import)
+- 6942a9d: VendorSchemaMappingSeeder (acme_supply, global_parts)
 
----
-
-### 1.3 — Brand Compliance Rules
-**Files:**
-- `database/migrations/*_create_brand_compliance_rules_table.php`
-- `app/Models/BrandComplianceRule.php`
-- `database/factories/BrandComplianceRuleFactory.php`
-- `database/seeders/BrandComplianceRuleSeeder.php`
-- `tests/Feature/BrandComplianceRuleTest.php`
-
-**Summary:**
-- Created migration with brand (indexed), rule_type, rule_config (json), is_active (bool)
-- Model with casts: rule_config→array, is_active→boolean, `scopeActive`, `scopeForBrand`
-- Seeder creates rules for Brand_1 through Brand_4 (SKU patterns, image dims, price ratios, required attributes)
-- 7 tests (migration, factory, casts, scopes, seeder)
-
-**Commit:** 6e56c41
-
----
-
-### 1.4 — DataStandardizationService
-**Files:**
-- `app/Services/DataStandardizationService.php`
-- `tests/Unit/DataStandardizationServiceTest.php`
-
-**Summary:**
-- `mapVendorRow(vendor, row)`: applies schema mappings + transform rules (uppercase, trim, date_format, multiply)
-- `normalizeAttribute(type, rawValue)`: case-insensitive lookup, fallback to original
-- `validateBrandCompliance(brand, data)`: returns violation array (required_field, naming_convention, price_range checks)
-- 17 unit tests covering all methods + edge cases
-
-**Commit:** 0acdede
-
----
-
-### 1.5 — Vendor Import Controller + Routes
-**Files:**
-- `app/Http/Controllers/VendorImportController.php`
-- `routes/web.php` (modified)
-- `tests/fixtures/acme_supply.csv`
-- `tests/fixtures/global_parts.csv`
-- `tests/Feature/VendorImportControllerTest.php`
-
-**Summary:**
-- `index()`: Inertia page with mappings + vendors list
-- `preview()`: CSV upload → mapped preview with violations
-- `import()`: full pipeline → results summary (imported, skipped, total, errors)
-- Routes: `/vendor-import` GET, `/vendor-import/preview` POST, `/vendor-import/import` POST
-- 2 CSV fixtures for testing
-- 4 feature tests (index, preview, validation, import)
-
-**Commit:** e7a59bc
-
----
-
-### 1.6 — Frontend Schema Mapping UI
-**Files:**
-- `resources/js/Pages/VendorImport.tsx`
-- `resources/js/components/SchemaMappingEditor.tsx`
-- `resources/js/components/ImportPreviewTable.tsx`
-- `resources/js/types/vendor.ts`
-
-**Summary:**
-- VendorImport.tsx: CSV upload + vendor dropdown + preview/import buttons
-- SchemaMappingEditor.tsx: read-only DataTable showing current mappings per vendor
-- ImportPreviewTable.tsx: DataTable with before/after, violation highlighting (red background), status badges
-- vendor.ts: TypeScript interfaces (VendorSchemaMapping, TransformRule, ImportPreviewRow, ComplianceViolation, ImportResult)
-
-**Commit:** 38fac5f
-
----
-
-## Navigation Integration
-
-### AppLayout Component
-**Files:**
-- `resources/js/components/AppLayout.tsx` (new)
-- `resources/js/Pages/Dashboard.tsx` (modified)
-- `resources/js/Pages/VendorImport.tsx` (modified)
-- `resources/js/components/TransactionDashboard.tsx` (modified)
-
-**Summary:**
-- Created shared AppLayout with navbar linking Transactions + Vendor Import
-- Active route highlighting
-- Integrated into Dashboard and VendorImport pages
-- Removed duplicate headers from TransactionDashboard and VendorImport
-
-**Commit:** b39e646
-
----
-
-## Database Setup
-
-### VendorSchemaMappingSeeder
-**Files:**
-- `database/seeders/VendorSchemaMappingSeeder.php` (new)
-- `database/seeders/DatabaseSeeder.php` (modified)
-
-**Summary:**
-- Seeds 8 vendor schema mappings for `acme_supply` and `global_parts`
-- acme_supply: item_num→sku, desc→name, mat→material (uppercase), qty→quantity (trim)
-- global_parts: PartNumber→sku, Description→name, Color→color, UnitPrice→cost (multiply)
-- Required for vendor import page to function
-
-**Commit:** 6942a9d
-
----
-
-## Phase 2: Cross-Category Audit Engine (In Progress)
-
-### 2.1 — Audit Logs + ERP Simulation Tables
-**Files:**
-- `database/migrations/*_create_products_table.php`
-- `database/migrations/*_create_inventory_items_table.php`
-- `database/migrations/*_create_product_assets_table.php`
-- `database/migrations/*_create_data_audit_logs_table.php`
-- `app/Models/Product.php`
-- `app/Models/InventoryItem.php`
-- `app/Models/ProductAsset.php`
-- `app/Models/DataAuditLog.php`
-- `database/factories/ProductFactory.php`
-- `database/factories/InventoryItemFactory.php`
-- `database/factories/ProductAssetFactory.php`
-- `database/factories/DataAuditLogFactory.php`
-- `database/seeders/ProductCatalogSeeder.php`
-- `tests/Feature/ProductCatalogTest.php`
-
-**Summary:**
-- Created 4 migrations: products, inventory_items, product_assets, data_audit_logs
-- Product: sku, name, category, brand, vendor_id, cost, msrp, retail_price, status
-- InventoryItem: product_id (FK cascade), warehouse_location, qty_on_hand, qty_committed, ecommerce_status, last_synced_at
-- ProductAsset: product_id (FK cascade), asset_type, url, alt_text, is_active, last_checked_at
-- DataAuditLog: audit_type (indexed), severity (enum), entity_type, entity_id, details (json), resolved_at
-- Models with relationships: Product hasMany InventoryItems/Assets; scopes: unresolved, bySeverity, byType
-- Factories for all 4 models
-- ProductCatalogSeeder: 100 products with intentional issues (10% price mismatches, 5% ghost inventory, 5% broken URLs, 5% miscategorized)
-- 17 tests covering migrations, models, factories, relationships, scopes, seeder
-
-**Commit:** 957b810
-
----
-
-### 2.2 — Price Discrepancy Watchdog
-**Files:**
-- `app/Services/Audits/PriceDiscrepancyAudit.php`
-- `app/Console/Commands/RunAuditCommand.php`
-- `tests/Unit/PriceDiscrepancyAuditTest.php`
-
-**Summary:**
-- PriceDiscrepancyAudit service with configurable threshold (default 15%)
-- Detects: cost > MSRP (critical), cost > retail_price (critical), low margin (warning)
-- Creates DataAuditLog entries with details (sku, prices, differences, margins)
-- RunAuditCommand: `audit:run {type}` supports price_discrepancy, all
-- 7 unit tests covering all detection scenarios, null handling, custom thresholds
-- Tested on seeded data: found 20 issues from 100 products
-
-**Commit:** 9c7d76c
-
----
-
-### 2.3 — Asset Health Check
-**Files:**
-- `app/Services/Audits/AssetHealthAudit.php`
-- `app/Console/Commands/RunAuditCommand.php` (modified)
-- `tests/Unit/AssetHealthAuditTest.php`
-
-**Summary:**
-- AssetHealthAudit service with configurable stale threshold (default 30 days)
-- Detects: invalid URL format (critical), missing alt_text for images (warning), stale last_checked_at (info)
-- No HTTP requests — validates URL format via filter_var
-- Creates DataAuditLog entries with details (url, product_id, days_since_check)
-- Updated RunAuditCommand to support asset_health type
-- 11 unit tests covering URL validation, alt text checks, stale detection, inactive assets, custom thresholds
-- Tested on seeded data: found 56 issues from 100 products
-
-**Commit:** d499e5f
-
----
-
-### 2.4 — Categorization Audit
-**Files:**
-- `app/Services/Audits/CategorizationAudit.php`
-- `app/Console/Commands/RunAuditCommand.php` (modified)
-- `tests/Unit/CategorizationAuditTest.php`
-
-**Summary:**
-- CategorizationAudit service validates SKU prefix matches category
-- Detects: null/empty categories (warning), SKU prefix mismatch (critical), unrecognized categories (warning)
-- Category prefixes: EL=Electronics, FR=Furniture, CL=Clothing, TL=Tools, HG=Home & Garden
-- Case-insensitive SKU prefix check
-- Creates DataAuditLog entries with details (sku, category, expected prefix)
-- Updated RunAuditCommand to support categorization type
-- 10 unit tests covering null categories, prefix mismatches, valid categories, edge cases
-- Tested on seeded data: found 5 categorization issues from 100 products
-
-**Commit:** a765124
-
----
-
-### 2.5 — Audit Scheduling
-**Files:**
-- `routes/console.php` (modified)
-- `tests/Feature/AuditSchedulingTest.php`
-
-**Summary:**
-- Scheduled `audit:run all` to run daily at 2:00 AM
-- Command runs all 3 audits: price_discrepancy, asset_health, categorization
-- Uses Laravel's task scheduler (cron: 0 2 * * *)
-- 4 tests: command scheduled, daily frequency, manual execution, individual audits
-
-**Commit:** 3355d54
-
----
-
-### 2.6 — Audit Dashboard Frontend
-**Files:**
-- `app/Http/Controllers/AuditController.php`
-- `routes/web.php` (modified)
-- `resources/js/types/audit.ts`
-- `resources/js/Pages/AuditDashboard.tsx`
-- `resources/js/components/AuditSummaryCards.tsx`
-- `resources/js/components/AuditExceptionTable.tsx`
-- `resources/js/components/AppLayout.tsx` (modified - added Audits nav link)
-- `tests/Feature/AuditControllerTest.php`
-
-**Summary:**
-- AuditController: index (paginated + filtered logs + summary stats), resolve endpoint
-- Routes: GET /audits, POST /audits/{log}/resolve
-- TypeScript types: DataAuditLog, AuditSummary, AuditFilters, PaginatedLogs
-- AuditDashboard page: filters + summary cards + exception table
-- AuditSummaryCards: unresolved count, by severity, by type
-- AuditExceptionTable: PrimeReact DataTable with severity badges, filters (severity/type/resolved), pagination, resolve button
-- Filters: severity (critical/warning/info), type (price/asset/categorization), resolved status
-- Default: shows unresolved only, 25 per page
-- Added "Data Audits" to navbar
-- 11 tests: page render, filtering, pagination, resolve action, summary stats
-
-**Commit:** c2e51c1
+**Routes:** `/vendor-import` GET, `/vendor-import/preview` POST, `/vendor-import/import` POST
+**Key files:** `app/Services/DataStandardizationService.php`, `app/Http/Controllers/VendorImportController.php`
 
 ---
 
 ## Phase 2: Cross-Category Audit Engine — ✅ COMPLETE
 
-All 6 tasks complete:
-- 2.1: Audit Logs + ERP Simulation Tables
-- 2.2: Price Discrepancy Watchdog
-- 2.3: Asset Health Check
-- 2.4: Categorization Audit
-- 2.5: Audit Scheduling
-- 2.6: Audit Dashboard Frontend
+| Task | Summary | Commit |
+|------|---------|--------|
+| 2.1 | ERP Simulation — products, inventory_items, product_assets, data_audit_logs + ProductCatalogSeeder (100 products w/ intentional discrepancies) | 957b810 |
+| 2.2 | Price Discrepancy Watchdog — PriceDiscrepancyAudit service + RunAuditCommand | 9c7d76c |
+| 2.3 | Asset Health Check — AssetHealthAudit service (URL format, alt text, staleness) | d499e5f |
+| 2.4 | Categorization Audit — CategorizationAudit service (SKU prefix/category matching) | a765124 |
+| 2.5 | Audit Scheduling — `audit:run all` daily at 2:00 AM | 3355d54 |
+| 2.6 | Audit Dashboard — AuditController + AuditDashboard.tsx + AuditSummaryCards + AuditExceptionTable | c2e51c1 |
 
-**Total Phase 2:** 4 services, 1 command, 4 migrations, 4 models, scheduled task, full frontend dashboard
+**Routes:** `/audits` GET, `/audits/{log}/resolve` POST
+**Command:** `audit:run {type}` — supports `price_discrepancy`, `asset_health`, `categorization`, `all`
+**Key files:** `app/Services/Audits/`, `app/Http/Controllers/AuditController.php`, `app/Console/Commands/RunAuditCommand.php`
+
+**Seeded discrepancies in ProductCatalogSeeder:**
+- 10% price mismatches (cost > msrp) — products 1-10
+- 5% ghost inventory (qty=0, ecommerce=in_stock) — products 11-15
+- 5% broken URLs (invalid format) — products 16-20
+- 5% miscategorized (wrong SKU prefix) — products 1-5
 
 ---
 
-## Test Results
-All tests passing: 57 tests, 97 assertions
+## Phase 3: Accounting SQL Library & Reporting — ❌ NOT STARTED
+
+### 3.1 — Saved Queries (Database)
+- `[NEW]` migration: `saved_audit_queries` (name, description, category, query_template, parameters json, created_by nullable)
+- `[NEW]` `app/Models/SavedAuditQuery.php`
+- `[NEW]` `SavedAuditQuerySeeder.php` — pre-built queries targeting existing tables:
+  - High-value outliers (transactions with amount > threshold)
+  - Vendor error rate (top vendors by audit issue frequency)
+  - Aging transactions (grouped by 30/60/90 days)
+  - Out-of-balance (products where cost > retail)
+- `[TEST]` Seeder creates expected records
+
+**Key decisions:**
+- `created_by` stays nullable (no auth system)
+- Queries target existing tables: transactions, products, data_audit_logs, inventory_items
+
+### 3.2 — Query Execution Engine (Service)
+- `[NEW]` `app/Services/QueryExecutionService.php`
+  - `validate()` — regex rejects anything that's not SELECT
+  - `execute()` — `DB::select()` with params (PDO single-statement)
+  - `export()` — CSV streamed response
+- `[TEST]` SQL injection prevention, mutation rejection
+
+**Key decisions:**
+- No query builder abstraction — raw `DB::select()` is sufficient for portfolio project
+- SELECT-only whitelist via regex is adequate security
+
+### 3.3 — Query Controller + Routes
+- `[NEW]` `app/Http/Controllers/QueryController.php` — index, execute (JSON), export (CSV download)
+- `[MOD]` `routes/web.php` — `/queries` GET, `/queries/{query}/execute` POST, `/queries/{query}/export` POST
+- `[TEST]` Feature tests
+
+### 3.4 — Query Runner Frontend
+- `[NEW]` `resources/js/types/query.ts`
+- `[NEW]` `resources/js/Pages/QueryLibrary.tsx` — category tabs, query cards
+- `[NEW]` `resources/js/components/QueryRunner.tsx` — param form + run button
+- `[NEW]` `resources/js/components/QueryResultsTable.tsx` — dynamic columns DataTable + export button
+- `[MOD]` `resources/js/components/AppLayout.tsx` — add Query Library nav link
+
+---
+
+## Phase 4: Real-Time Integrity Guard — ❌ NOT STARTED
+
+### 4.1 — Integrity Alerts (Database)
+- `[NEW]` migration: `integrity_alerts` (alert_type, source_module, target_module, entity_type, entity_id, details json, acknowledged_at, auto_resolved_at)
+- `[NEW]` `app/Models/IntegrityAlert.php` — scopes: unacknowledged, active, critical
+- `[NEW]` factory + test
+
+### 4.2 — Feed Logs (Database)
+- `[NEW]` migration: `feed_logs` (feed_source, feed_type, status, records_processed, records_failed, error_summary json, started_at, completed_at)
+- `[NEW]` `app/Models/FeedLog.php`
+- `[NEW]` factory + test
+
+### 4.3 — Inventory Sync Monitor + Event
+- `[NEW]` `app/Services/Integrity/InventorySyncMonitor.php` — `checkGhosting()` finds qty=0 + ecommerce=in_stock, creates alert, dispatches event
+- `[NEW]` `app/Events/IntegrityAlertCreated.php` — ShouldBroadcastNow on `integrity-alerts` channel (follows TransactionCreated pattern)
+- `[TEST]` Seed ghost scenario, verify alert
+
+### 4.4 — Price Sync Guard
+- `[NEW]` `app/Services/Integrity/PriceSyncGuard.php` — `checkStalePrices()` flags sync lag > threshold
+- `[TEST]` Seed stale price scenario
+
+### 4.5 — Feed Logger Service
+- `[NEW]` `app/Services/Integrity/FeedLoggerService.php` — logFeedStart, logFeedComplete, getFeedHealthReport
+- `[TEST]` Logging lifecycle
+
+### 4.6 — Scheduling + Webhooks
+- `[NEW]` Commands: CheckGhostingCommand, CheckPricesCommand
+- `[MOD]` `routes/console.php` — ghosting every 5min, prices every 1min
+- `[NEW]` `routes/api.php` — POST `/webhooks/feed-complete` (Bearer token via `FEED_WEBHOOK_SECRET` env)
+- `[MOD]` `bootstrap/app.php` — register api routes
+
+### 4.7 — Integrity Monitor Frontend
+- `[NEW]` `resources/js/types/integrity.ts`
+- `[NEW]` `resources/js/hooks/useIntegrityAlerts.ts` — Echo on `integrity-alerts` channel
+- `[NEW]` `resources/js/Pages/IntegrityMonitor.tsx`
+- `[NEW]` `resources/js/components/IntegrityAlertFeed.tsx` — live feed + acknowledge button
+- `[NEW]` `resources/js/components/FeedHealthTable.tsx` — success rates, last run times
+- `[NEW]` `resources/js/components/IntegrityAlertBanner.tsx` — persistent banner for critical alerts
+- `[MOD]` `resources/js/components/AppLayout.tsx` — add Integrity nav link
+- `[NEW]` controller + routes + test
+
+---
+
+## Phase 5: Navigation & Integration — ❌ NOT STARTED
+
+**Note:** AppLayout navbar already exists (created during Phase 1). Phase 5 converts it to a sidebar layout and adds a home dashboard with aggregate stats.
+
+### 5.1 — App Navigation (Sidebar)
+- `[NEW]` `resources/js/components/AppSidebar.tsx` — sidebar nav, current page highlight, mobile collapse
+- `[MOD]` `resources/js/components/AppLayout.tsx` — replace top navbar with sidebar + main content layout
+- `[MOD]` all Pages — wrap in AppLayout (already done for Dashboard, VendorImport, AuditDashboard)
+
+### 5.2 — Home Dashboard
+- `[NEW]` `app/Http/Controllers/DashboardController.php` — aggregates: transactions, unresolved audits, active alerts, feed health
+- `[MOD]` `routes/web.php` — `GET /` uses DashboardController
+- `[MOD]` `resources/js/Pages/Dashboard.tsx` — add summary cards above transaction table
+- `[TEST]` Feature test
+
+---
+
+## Execution Order (Remaining)
+
+```
+Phase 3: 3.1 → 3.2 → 3.3 → 3.4
+Phase 4: 4.1 + 4.2 (independent) → 4.3, 4.4, 4.5 (independent) → 4.6 → 4.7
+Phase 5: 5.1 → 5.2
+```
+
+One commit per numbered task. `sail artisan test` green before proceeding.
+
+---
+
+## Current Database Tables
+
+| Table | Phase | Purpose |
+|-------|-------|---------|
+| transactions | Pre-existing | Core transaction data |
+| transaction_logs | Pre-existing | Audit trail for transactions |
+| vendor_schema_mappings | 1.1 | Vendor CSV → ERP column mappings |
+| attribute_normalizations | 1.2 | Raw value → normalized value lookup |
+| brand_compliance_rules | 1.3 | Brand-specific validation rules |
+| products | 2.1 | ERP simulation — product catalog |
+| inventory_items | 2.1 | ERP simulation — inventory per product |
+| product_assets | 2.1 | ERP simulation — images/docs per product |
+| data_audit_logs | 2.1 | Audit findings from all audit services |
+
+## Current Routes
+
+| Method | Path | Controller | Phase |
+|--------|------|-----------|-------|
+| GET | `/` | Closure | Pre-existing |
+| GET | `/vendor-import` | VendorImportController@index | 1.5 |
+| POST | `/vendor-import/preview` | VendorImportController@preview | 1.5 |
+| POST | `/vendor-import/import` | VendorImportController@import | 1.5 |
+| GET | `/audits` | AuditController@index | 2.6 |
+| POST | `/audits/{log}/resolve` | AuditController@resolve | 2.6 |
+
+## Current Navbar Links
+
+Transactions (`/`) · Vendor Import (`/vendor-import`) · Data Audits (`/audits`)
