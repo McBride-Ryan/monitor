@@ -194,5 +194,24 @@
 
 ---
 
+### 2.3 — Asset Health Check
+**Files:**
+- `app/Services/Audits/AssetHealthAudit.php`
+- `app/Console/Commands/RunAuditCommand.php` (modified)
+- `tests/Unit/AssetHealthAuditTest.php`
+
+**Summary:**
+- AssetHealthAudit service with configurable stale threshold (default 30 days)
+- Detects: invalid URL format (critical), missing alt_text for images (warning), stale last_checked_at (info)
+- No HTTP requests — validates URL format via filter_var
+- Creates DataAuditLog entries with details (url, product_id, days_since_check)
+- Updated RunAuditCommand to support asset_health type
+- 11 unit tests covering URL validation, alt text checks, stale detection, inactive assets, custom thresholds
+- Tested on seeded data: found 56 issues from 100 products
+
+**Commit:** Pending
+
+---
+
 ## Test Results
 All tests passing: 57 tests, 97 assertions

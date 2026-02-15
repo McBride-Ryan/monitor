@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Audits\AssetHealthAudit;
 use App\Services\Audits\PriceDiscrepancyAudit;
 use Illuminate\Console\Command;
 
@@ -21,6 +22,7 @@ class RunAuditCommand extends Command
 
         match ($type) {
             'price_discrepancy' => $totalIssues = $this->runPriceDiscrepancyAudit(),
+            'asset_health' => $totalIssues = $this->runAssetHealthAudit(),
             'all' => $totalIssues = $this->runAllAudits(),
             default => $this->error("Unknown audit type: {$type}"),
         };
@@ -43,10 +45,20 @@ class RunAuditCommand extends Command
         return $count;
     }
 
+    private function runAssetHealthAudit(): int
+    {
+        $audit = new AssetHealthAudit();
+        $count = $audit->run();
+        $this->line("  - Asset health: {$count} issues");
+
+        return $count;
+    }
+
     private function runAllAudits(): int
     {
         $total = 0;
         $total += $this->runPriceDiscrepancyAudit();
+        $total += $this->runAssetHealthAudit();
 
         return $total;
     }
