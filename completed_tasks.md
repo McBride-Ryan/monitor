@@ -125,5 +125,22 @@
 
 ---
 
+## Database Setup
+
+### VendorSchemaMappingSeeder
+**Files:**
+- `database/seeders/VendorSchemaMappingSeeder.php` (new)
+- `database/seeders/DatabaseSeeder.php` (modified)
+
+**Summary:**
+- Seeds 8 vendor schema mappings for `acme_supply` and `global_parts`
+- acme_supply: item_num→sku, desc→name, mat→material (uppercase), qty→quantity (trim)
+- global_parts: PartNumber→sku, Description→name, Color→color, UnitPrice→cost (multiply)
+- Required for vendor import page to function
+
+**Commit:** Pending
+
+---
+
 ## Test Results
 All tests passing: 40 tests, 59 assertions
