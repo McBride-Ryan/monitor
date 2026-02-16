@@ -1,16 +1,22 @@
 import { Head } from '@inertiajs/react';
-import { Transaction } from '../types/transaction';
+import { PaginatedTransactions, FilterState, TransactionSummary } from '../types/transaction';
 import TransactionDashboard from '../components/TransactionDashboard';
 
 interface Props {
-    transactions: Transaction[];
+    transactions: PaginatedTransactions;
+    filters: FilterState;
+    summary: TransactionSummary;
 }
 
-export default function Dashboard({ transactions }: Props) {
+export default function Dashboard({ transactions, filters, summary }: Props) {
     return (
         <>
             <Head title="Transaction Monitor" />
-            <TransactionDashboard initialTransactions={transactions} />
+            <TransactionDashboard
+                initialData={transactions}
+                initialFilters={filters}
+                summary={summary}
+            />
         </>
     );
 }

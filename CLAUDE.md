@@ -68,6 +68,14 @@ Key: Every Transaction MUST have exactly one TransactionLog. Observer enforces t
 - **Real-time**: `useTransactions` hook listens to Reverb, prepends new txns to state
 - **Memoization**: `TotalSumCard` and `BrandSummaryCard` use `useMemo` for expensive calculations during burst loads
 
+### Filtering Rules
+
+**CRITICAL**: Account type filter with "All" selected (value: null) MUST return ALL account types: checking, savings, and credit.
+
+- Backend `routes/web.php` defaults to `whereIn('account_type', ['checking', 'savings', 'credit'])` when no `account_types` param or null/empty value
+- Frontend FilterSidebar Dropdown uses `optionLabel="label"` and `optionValue="value"` to properly extract values
+- When `account_type` is null, the query param is omitted entirely to trigger default behavior
+
 ### Data Flow
 
 ```

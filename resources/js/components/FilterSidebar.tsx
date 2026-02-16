@@ -8,7 +8,7 @@ interface FilterSidebarProps {
     onOrderOriginsChange: (value: string[]) => void;
 }
 
-const accountTypes = [
+const accountTypeOptions = [
     { label: 'All', value: null },
     { label: 'Checking', value: 'checking' },
     { label: 'Savings', value: 'savings' },
@@ -36,8 +36,10 @@ export default function FilterSidebar({
                 <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
                 <Dropdown
                     value={accountType}
-                    options={accountTypes}
+                    options={accountTypeOptions}
                     onChange={(e) => onAccountTypeChange(e.value)}
+                    optionLabel="label"
+                    optionValue="value"
                     placeholder="All"
                     className="w-full"
                 />

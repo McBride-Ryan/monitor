@@ -1,9 +1,11 @@
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTablePageEvent, DataTableSortEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
-import { Transaction } from '../types/transaction';
+import { Transaction, PaginatedTransactions } from '../types/transaction';
 
 interface TransactionTableProps {
-    transactions: Transaction[];
+    paginatedData: PaginatedTransactions;
+    onPageChange: (page: number, rows: number) => void;
+    onSort: (field: string, order: 'asc' | 'desc') => void;
 }
 
 function formatCurrency(amount: string) {
@@ -23,13 +25,31 @@ function formatDate(timestamp: string) {
     });
 }
 
-export default function TransactionTable({ transactions }: TransactionTableProps) {
+export default function TransactionTable({
+    paginatedData,
+    onPageChange,
+    onSort
+}: TransactionTableProps) {
+    const handlePage = (event: DataTablePageEvent) => {
+        onPageChange(event.page + 1, event.rows);
+    };
+
+    const handleSort = (event: DataTableSortEvent) => {
+        const order = event.sortOrder === 1 ? 'asc' : 'desc';
+        onSort(event.sortField as string, order);
+    };
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <DataTable
-                value={transactions}
+                value={paginatedData.data}
+                lazy
                 paginator
-                rows={20}
+                first={(paginatedData.current_page - 1) * paginatedData.per_page}
+                rows={paginatedData.per_page}
+                totalRecords={paginatedData.total}
+                onPage={handlePage}
+                onSort={handleSort}
                 rowsPerPageOptions={[10, 20, 50]}
                 sortField="timestamp"
                 sortOrder={-1}

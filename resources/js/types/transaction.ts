@@ -17,3 +17,31 @@ export interface Transaction {
     updated_at: string;
     logs: TransactionLog[];
 }
+
+export interface PaginatedTransactions {
+    data: Transaction[];
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+    from: number | null;
+    to: number | null;
+    links: {
+        first: string | null;
+        last: string | null;
+        prev: string | null;
+        next: string | null;
+    };
+}
+
+export interface FilterState {
+    account_type: string | null;
+    order_origins: string[];
+    sort_field: string;
+    sort_order: 'asc' | 'desc';
+}
+
+export interface TransactionSummary {
+    total_sum: number;
+    by_brand: Record<string, number>;
+}
