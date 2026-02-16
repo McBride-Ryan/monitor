@@ -10,6 +10,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             TransactionSeeder::class,
+            VendorSchemaMappingSeeder::class,
+            AttributeNormalizationSeeder::class,
+            BrandComplianceRuleSeeder::class,
         ]);
     }
 }
