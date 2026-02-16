@@ -102,6 +102,7 @@ SimulateTransactions command
 ### Database Schema
 
 **transactions**: id, timestamp, amount, description, account_type (checking/savings/credit), order_origin (Brand_1-4)
+**transactions index**: timestamp, account_type, order_origin
 
 **transaction_logs**: id, transaction_id (FK), origin, status, logged_at
 
