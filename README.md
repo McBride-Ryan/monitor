@@ -1,176 +1,186 @@
 
 ---
 
-# PROJECT SPECIFICATION: High-Volume Real-Time Transaction & Log Monitor
+# Real-Time Transaction & Shipment Monitor
 
-## 🤖 Agent Environment Setup
-Initialize the workspace with these specialized tools before generating code:
-
-1.  **Claude Code Marketplace:** `/plugin marketplace add anthropics/claude-code`
-2.  **Design System Plugin:** `/plugin install frontend-design@claude-code-plugins`
-3.  **UI Directive:** Use `frontend-design` to ensure the PrimeReact implementation is responsive across Mobile, Tablet, and Desktop, utilizing Tailwind CSS for fluid spacing.
+Real-time transaction monitoring system with async shipment tracking pipeline. Built with Laravel, Inertia SSR, React/TypeScript, PrimeReact, Laravel Reverb (WebSockets), and Laravel Horizon.
 
 ---
 
-## 1. Database Architecture & Models
+## Features
 
-### A. Transactions Table (Updated Schema)
-```php
-Schema::create('transactions', function (Blueprint $table) {
-    $table->bigIncrements('id');
-    $table->timestamp('timestamp');
-    $table->decimal('amount', 10, 2);
-    $table->string('description');
-    $table->string('account_type'); // checking, savings, credit
-    $table->string('order_origin'); // Brand_1, Brand_2, Brand_3, Brand_4
-    $table->timestamps();
-});
-```
-
-### B. Transaction Logs Table
-Create a `TransactionLog` model to audit every incoming entry, specifically tracking ETL backoffice origins.
-- **Fields:** `id`, `transaction_id` (constrained), `origin`, `status` (success/failed), `logged_at`.
-
-### C. Seeding & Logic
-- **Factory:** Generate data where `order_origin` is randomly assigned from `['Brand_1', 'Brand_2', 'Brand_3', 'Brand_4']`.
-- **Observer:** Create a `TransactionObserver`. Whenever a `Transaction` is created, automatically create a corresponding `TransactionLog` entry.
+- **Live transaction feed** — WebSocket-pushed transactions prepend to the table in real-time
+- **Async shipment pipeline** — scheduled jobs batch-create shipments and advance status every 30s
+- **Shipment tracking** — packing → shipped → out for delivery → delivered (with exception simulation)
+- **Filtering** — by account type, brand, and shipment status (including "unshipped")
+- **Horizon dashboard** — full job queue observability at `/horizon`
+- **Dark fintech UI** — deep slate + electric cyan aesthetic, PrimeReact `lara-dark-blue` theme
 
 ---
 
-## 2. Real-Time Engine (Laravel Reverb)
-- **WebSockets:** Implement Laravel Reverb for real-time broadcasting.
-- **Event:** `TransactionCreated` (implements `ShouldBroadcastNow`).
-- **Simulator:** Create `app:simulate-transactions`.
-    - Loop and generate a transaction every 5–30 seconds.
-    - Randomize the `order_origin` brand for each entry.
-    - **High-Volume Burst:** Every 10th iteration, trigger 10 transactions at once to stress-test the Log model and Frontend list.
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Laravel 12, PHP 8.2+ |
+| Queue | Redis + Laravel Horizon |
+| Frontend | React 19, TypeScript, Inertia.js |
+| UI | PrimeReact, Tailwind CSS 4 |
+| Real-time | Laravel Reverb, Laravel Echo |
+| Dev | Vite 7, Sail (Docker), PHPUnit |
 
 ---
 
-## 3. Frontend: React, TypeScript, & SSR
-- **Inertia SSR:** Configure `ssr.tsx` to render the initial state server-side.
-- **PrimeReact DataTable:**
-    - **Live Merging:** Use a custom hook to manage the state. New WebSocket data must be prepended to the top of the table.
-    - **Filtering:** Implement a dropdown for `account_type` and a multi-select for `order_origin` (Brands).
-    - **Memoization:** Use `useMemo` for the "Total Sum" calculation and the "Brand Summary" card to ensure UI fluidity during high-volume updates.
-- **Resilience UI:**
-    - Display a **Connection Status Indicator**.
-    - If Reverb fails, show: *"Live stream interrupted. Offline data remains interactive. Reconnecting..."*
+## Quick Start (Docker)
 
----
-
-## 4. Dockerization (Seamless Setup)
-To ensure a "one-command" setup, use a `docker-compose.yml` based on **Laravel Sail**, customized for Reverb.
-
-**Services to include:**
-1.  **`laravel.test`**: PHP 8.2/8.3, Node.js 20 (for Vite/SSR).
-2.  **`mysql`**: Persistence.
-3.  **`redis`**: For broadcast caching.
-4.  **`reverb`**: The dedicated WebSocket port (8080).
-5.  **`selenium`**: (Optional) For automated testing.
-
-**Setup Command for the User:**
 ```bash
-cp .env.example .env && ./vendor/bin/sail up -d && ./vendor/bin/sail artisan migrate --seed
+cp .env.example .env
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan migrate --seed
+```
+
+Then open five terminals:
+
+```bash
+./vendor/bin/sail artisan reverb:start                   # WebSocket server
+./vendor/bin/sail artisan horizon                        # Queue worker
+./vendor/bin/sail artisan schedule:work                  # Shipment scheduler (every 30s)
+./vendor/bin/sail npm run dev                            # Vite HMR
+./vendor/bin/sail artisan app:simulate-transactions      # Optional: generate transactions
+```
+
+Open `http://localhost` for the dashboard, `http://localhost/horizon` for queue monitoring.
+
+---
+
+## Quick Start (Without Docker)
+
+```bash
+composer setup   # install, key, migrate, build
+php artisan reverb:start   # separate terminal
+php artisan schedule:work  # separate terminal
+composer dev               # server + horizon + logs + vite
 ```
 
 ---
 
-## 5. Verification Protocols
-- **Log Integrity:** Verify that for every 1 Transaction created, 1 Log entry exists in the `transaction_logs` table.
-- **Concurrency Check:** Ensure the "Total Amount" sum updates correctly when a burst of 5+ transactions arrives via WebSockets.
-- **Responsive Check:**
-    - **Mobile:** Table should enable horizontal scroll or transform into "cards" for the transaction list.
-    - **Desktop:** Full data grid with Brand filtering sidebar.
+## Architecture
+
+### Transaction Pipeline (synchronous)
+
+```
+app:simulate-transactions
+  → Transaction::create()
+    → TransactionObserver → TransactionLog::create()     (1:1, always)
+    → TransactionCreated::dispatch()
+      → Reverb → frontend prepends to table
+```
+
+### Shipment Pipeline (async, every 30s)
+
+```
+Scheduler
+  → ProcessPendingShipmentsJob (Redis queue)
+      ships 50–75% of unshipped transactions per cycle
+      → Shipment::create(status=packing)
+        → ShipmentObserver → ShipmentLog::create()
+        → ShipmentUpdated → Reverb → frontend patches row
+
+  → AdvanceShipmentStatusJob (Redis queue)
+      picks up to 15 in-flight shipments
+      62% advance  |  3% exception  |  35% hold
+      → shipment.update(status=next)
+        → ShipmentObserver → ShipmentLog::create()
+        → ShipmentUpdated → Reverb → frontend patches row
+```
+
+Status progression: `packing → shipped → out_for_delivery → delivered`
 
 ---
 
-# 🚀 Agentic Execution Plan
+## Database Schema
 
-### Phase 1: Containerization & Backend
-1. Generate `docker-compose.yml` and `.env` configured for Reverb.
-2. Create Migrations for `transactions` and `transaction_logs`.
-3. Build Models, Observers, and Factories.
-4. Setup the `app:simulate-transactions` command.
+```
+transactions        id, timestamp, amount, description, account_type, order_origin
+transaction_logs    id, transaction_id (FK), origin, status, logged_at          [1:1]
 
-### Phase 2: Real-Time Layer
-1. Configure `broadcasting.php` for Reverb.
-2. Implement the `TransactionCreated` event.
-3. Test the broadcast using `php artisan tinker`.
+shipments           id, transaction_id (FK UNIQUE), carrier, tracking_number,
+                    status, estimated_delivery                                   [1:1 with transaction]
+shipment_logs       id, shipment_id (FK), status, location, message, logged_at  [1:many with shipment]
+```
 
-### Phase 3: Frontend & Design
-1. Initialize Inertia with TypeScript and SSR enabled.
-2. Install PrimeReact and Tailwind CSS.
-3. Use the `frontend-design` plugin to generate the `TransactionDashboard`.
-4. Implement the WebSocket listener (Laravel Echo) and the memoized state logic.
-
-### Phase 4: Error Handling & Refinement
-1. Add the "Connection Monitor" banner.
-2. Implement total sum calculations (memoized).
-3. Ensure strict TypeScript types for all Brand and Transaction objects.
+Indexes: `transactions(timestamp, account_type, order_origin)`, `shipments(status)`, `shipment_logs(shipment_id)`
 
 ---
 
-## Implementation Summary
+## Key Files
 
-### Components Built
+```
+app/Models/
+  Transaction.php              hasMany logs, hasOne shipment
+  TransactionLog.php
+  Shipment.php                 belongsTo transaction, hasMany logs
+  ShipmentLog.php
+
+app/Observers/
+  TransactionObserver.php      creates TransactionLog on created
+  ShipmentObserver.php         creates ShipmentLog + broadcasts on created/updated
+
+app/Events/
+  TransactionCreated.php       ShouldBroadcastNow → transactions channel
+  ShipmentUpdated.php          ShouldBroadcastNow → transactions channel
+
+app/Jobs/
+  ProcessPendingShipmentsJob.php   batch shipment creation (50-75% per cycle)
+  AdvanceShipmentStatusJob.php     status progression (up to 15 per cycle)
+
+app/Console/Commands/
+  SimulateTransactions.php     generates transactions with burst mode
+
+routes/
+  web.php                      Inertia Dashboard route, all filters, eager loads
+  console.php                  Schedule::job(...)->everyThirtySeconds() × 2
+
+resources/js/
+  types/transaction.ts         Transaction, Shipment, ShipmentLog, FilterState types
+  hooks/useTransactions.ts     TransactionCreated + ShipmentUpdated WebSocket listeners
+  hooks/useConnectionStatus.ts Reverb connection state
+  components/
+    TransactionDashboard.tsx   layout, notification bar, filter state
+    TransactionTable.tsx        DataTable + shipment column (carrier + status badge)
+    FilterSidebar.tsx           account type + brand + shipment status filters
+    TotalSumCard.tsx            memoized total
+    BrandSummaryCard.tsx        memoized brand breakdown with progress bars
+    ConnectionStatusBanner.tsx  live pulse dot indicator
+
+config/horizon.php             Horizon queue configuration
+```
+
+---
+
+## Filtering
+
+| Filter | Values | Backend behavior |
+|---|---|---|
+| Account type | All / checking / savings / credit | `whereIn` or omit for all three |
+| Brand | Brand_1–4 (multi-select) | `whereIn('order_origin', ...)` |
+| Shipment status | All / unshipped / packing / shipped / out_for_delivery / delivered / exception | `doesntHave` or `whereHas` |
+
+---
+
+## Components Summary
+
 | Component | Purpose |
 |---|---|
-| `app.tsx` | Inertia client entry, PrimeReact CSS imports |
+| `app.tsx` | Inertia client entry, PrimeReact lara-dark-blue theme |
 | `ssr.tsx` | Inertia SSR entry |
-| `echo.ts` | Laravel Echo / Reverb WebSocket client |
-| `useTransactions.ts` | Hook: WebSocket listener, live prepend to state |
-| `useConnectionStatus.ts` | Hook: Reverb connection health (connected/connecting/disconnected) |
-| `Dashboard.tsx` | Page: passes initial transactions to dashboard |
-| `TransactionDashboard.tsx` | Main layout: header, sidebar filters, summary cards, table |
-| `TransactionTable.tsx` | PrimeReact DataTable: paginated, sortable, formatted |
-| `FilterSidebar.tsx` | Dropdown (account_type) + MultiSelect (brand) filters |
-| `TotalSumCard.tsx` | Memoized sum of filtered transactions |
-| `BrandSummaryCard.tsx` | Memoized brand grouping with counts + totals |
-| `ConnectionStatusBanner.tsx` | Live/connecting/disconnected indicator |
-
-## File Structure (created/modified)
-```
-compose.yaml                          # added Reverb port
-.env                                  # Reverb + broadcasting config
-app/Models/Transaction.php            # fillable, casts, hasMany logs
-app/Models/TransactionLog.php         # fillable, casts, belongsTo
-app/Observers/TransactionObserver.php # auto-create log on txn create
-app/Providers/AppServiceProvider.php  # register observer
-app/Events/TransactionCreated.php     # ShouldBroadcastNow + Dispatchable
-app/Console/Commands/SimulateTransactions.php
-database/migrations/*_create_transactions_table.php
-database/migrations/*_create_transaction_logs_table.php
-database/factories/TransactionFactory.php
-database/seeders/TransactionSeeder.php
-database/seeders/DatabaseSeeder.php
-bootstrap/app.php                     # Inertia middleware
-routes/web.php                        # Inertia Dashboard route
-resources/views/app.blade.php         # Inertia root template
-resources/css/app.css                 # Tailwind config
-resources/js/app.tsx
-resources/js/ssr.tsx
-resources/js/echo.ts
-resources/js/types/transaction.ts
-resources/js/types/global.d.ts
-resources/js/hooks/useTransactions.ts
-resources/js/hooks/useConnectionStatus.ts
-resources/js/components/TransactionDashboard.tsx
-resources/js/components/TransactionTable.tsx
-resources/js/components/FilterSidebar.tsx
-resources/js/components/TotalSumCard.tsx
-resources/js/components/BrandSummaryCard.tsx
-resources/js/components/ConnectionStatusBanner.tsx
-resources/js/Pages/Dashboard.tsx
-vite.config.ts
-tsconfig.json
-```
-
-## How to Run
-```bash
-./vendor/bin/sail up -d
-./vendor/bin/sail artisan reverb:start        # terminal 1
-./vendor/bin/sail npm run dev                 # terminal 2
-./vendor/bin/sail artisan app:simulate-transactions  # terminal 3
-# Open http://localhost
-```
+| `echo.ts` | Laravel Echo / Reverb client |
+| `useTransactions.ts` | WebSocket listener: new transactions + shipment status patches |
+| `useConnectionStatus.ts` | Reverb connection health |
+| `Dashboard.tsx` | Inertia page, passes props to dashboard |
+| `TransactionDashboard.tsx` | Layout, filters, notification bar (no Toast) |
+| `TransactionTable.tsx` | PrimeReact DataTable, paginated, sortable, shipment column |
+| `FilterSidebar.tsx` | Account type + brand + shipment status filters |
+| `TotalSumCard.tsx` | Memoized sum with cyan accent |
+| `BrandSummaryCard.tsx` | Memoized brand totals with progress bars |
+| `ConnectionStatusBanner.tsx` | Live/connecting/disconnected pill with pulse animation |

@@ -6,6 +6,8 @@ interface FilterSidebarProps {
     onAccountTypeChange: (value: string | null) => void;
     orderOrigins: string[];
     onOrderOriginsChange: (value: string[]) => void;
+    shipmentStatus: string | null;
+    onShipmentStatusChange: (value: string | null) => void;
 }
 
 const accountTypeOptions = [
@@ -22,11 +24,23 @@ const originOptions = [
     { label: 'Brand 4', value: 'Brand_4' },
 ];
 
+const shipmentStatusOptions = [
+    { label: 'All', value: null },
+    { label: 'Unshipped', value: 'unshipped' },
+    { label: 'Packing', value: 'packing' },
+    { label: 'Shipped', value: 'shipped' },
+    { label: 'Out for Delivery', value: 'out_for_delivery' },
+    { label: 'Delivered', value: 'delivered' },
+    { label: 'Exception', value: 'exception' },
+];
+
 export default function FilterSidebar({
     accountType,
     onAccountTypeChange,
     orderOrigins,
     onOrderOriginsChange,
+    shipmentStatus,
+    onShipmentStatusChange,
 }: FilterSidebarProps) {
     return (
         <div className="rounded-xl p-6 space-y-4" style={{ background: '#1e293b', border: '1px solid #334155' }}>
@@ -58,6 +72,21 @@ export default function FilterSidebar({
                     placeholder="All Brands"
                     className="w-full"
                     display="chip"
+                />
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: '#94a3b8' }}>
+                    Shipment Status
+                </label>
+                <Dropdown
+                    value={shipmentStatus}
+                    options={shipmentStatusOptions}
+                    onChange={(e) => onShipmentStatusChange(e.value)}
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="All"
+                    className="w-full"
                 />
             </div>
         </div>

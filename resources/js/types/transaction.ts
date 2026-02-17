@@ -6,6 +6,28 @@ export interface TransactionLog {
     logged_at: string;
 }
 
+export type ShipmentStatus = 'packing' | 'shipped' | 'out_for_delivery' | 'delivered' | 'exception';
+export type Carrier = 'fedex' | 'ups' | 'usps' | 'dhl';
+
+export interface ShipmentLog {
+    id: number;
+    shipment_id: number;
+    status: ShipmentStatus;
+    location: string | null;
+    message: string;
+    logged_at: string;
+}
+
+export interface Shipment {
+    id: number;
+    transaction_id: number;
+    carrier: Carrier;
+    tracking_number: string;
+    status: ShipmentStatus;
+    estimated_delivery: string | null;
+    logs?: ShipmentLog[];
+}
+
 export interface Transaction {
     id: number;
     timestamp: string;
@@ -16,6 +38,7 @@ export interface Transaction {
     created_at: string;
     updated_at: string;
     logs: TransactionLog[];
+    shipment?: Shipment | null;
 }
 
 export interface PaginatedTransactions {
@@ -37,6 +60,7 @@ export interface PaginatedTransactions {
 export interface FilterState {
     account_type: string | null;
     order_origins: string[];
+    shipment_status: string | null;
     sort_field: string;
     sort_order: 'asc' | 'desc';
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Transaction, PaginatedTransactions, FilterState } from '../types/transaction';
+import { Transaction, Shipment, PaginatedTransactions, FilterState } from '../types/transaction';
 import echo from '../echo';
 
 interface UseTransactionsOptions {
@@ -22,7 +22,8 @@ export function useTransactions({ initialData, filters }: UseTransactionsOptions
         filters.sort_field === 'timestamp' &&
         filters.sort_order === 'desc' &&
         !filters.account_type &&
-        filters.order_origins.length === 0;
+        filters.order_origins.length === 0 &&
+        !filters.shipment_status;
 
     useEffect(() => {
         const channel = echo.channel('transactions');
@@ -37,6 +38,17 @@ export function useTransactions({ initialData, filters }: UseTransactionsOptions
             } else {
                 setPendingCount(prev => prev + 1);
             }
+        });
+
+        channel.listen('ShipmentUpdated', (e: { shipment: Shipment }) => {
+            setPaginatedData(prev => ({
+                ...prev,
+                data: prev.data.map(tx =>
+                    tx.id === e.shipment.transaction_id
+                        ? { ...tx, shipment: e.shipment }
+                        : tx
+                ),
+            }));
         });
 
         return () => echo.leave('transactions');

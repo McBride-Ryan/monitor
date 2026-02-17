@@ -45,6 +45,10 @@ export default function TransactionDashboard({
             params.order_origins = updated.order_origins.join(',');
         }
 
+        if (updated.shipment_status) {
+            params.shipment_status = updated.shipment_status;
+        }
+
         router.get('/', params, {
             preserveState: true,
             preserveScroll: true,
@@ -69,6 +73,10 @@ export default function TransactionDashboard({
 
         if (filters.order_origins.length > 0) {
             params.order_origins = filters.order_origins.join(',');
+        }
+
+        if (filters.shipment_status) {
+            params.shipment_status = filters.shipment_status;
         }
 
         router.get('/', params, {
@@ -120,6 +128,10 @@ export default function TransactionDashboard({
                             orderOrigins={filters.order_origins}
                             onOrderOriginsChange={(origins) =>
                                 reloadData({ order_origins: origins })
+                            }
+                            shipmentStatus={filters.shipment_status}
+                            onShipmentStatusChange={(status) =>
+                                reloadData({ shipment_status: status })
                             }
                         />
                         <TotalSumCard totalSum={summary.total_sum} />
