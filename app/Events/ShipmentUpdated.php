@@ -4,12 +4,14 @@ namespace App\Events;
 
 use App\Models\Shipment;
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Broadcasting\InteractsWithSockets;
 
-class ShipmentUpdated implements ShouldBroadcastNow
+class ShipmentUpdated implements ShouldBroadcast
 {
-    use Dispatchable;
+    use Dispatchable, SerializesModels, InteractsWithSockets;
 
     public function __construct(public Shipment $shipment) {}
 
@@ -20,6 +22,9 @@ class ShipmentUpdated implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        return ['shipment' => $this->shipment->toArray()];
+        // Ensure logs are included for the dashboard timeline
+        return [
+            'shipment' => $this->shipment->loadMissing('logs')->toArray()
+        ];
     }
 }

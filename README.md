@@ -12,6 +12,8 @@ Real-time transaction monitoring system with async shipment tracking pipeline. B
 - **Live transaction feed** — WebSocket-pushed transactions prepend to the table in real-time
 - **Async shipment pipeline** — scheduled jobs batch-create shipments and advance status every 30s
 - **Shipment tracking** — packing → shipped → out for delivery → delivered (with exception simulation)
+- **Expandable rows** — click any row to see full transaction details + carrier info + live tracking timeline
+- **On-demand detail loading** — shipment logs fetched lazily per row (not on page load); cached to avoid re-fetching; WebSocket updates merge into cache live
 - **Filtering** — by account type, brand, and shipment status (including "unshipped")
 - **Horizon dashboard** — full job queue observability at `/horizon`
 - **Dark fintech UI** — deep slate + electric cyan aesthetic, PrimeReact `lara-dark-blue` theme
@@ -84,17 +86,35 @@ Scheduler
       ships 50–75% of unshipped transactions per cycle
       → Shipment::create(status=packing)
         → ShipmentObserver → ShipmentLog::create()
-        → ShipmentUpdated → Reverb → frontend patches row
+        → ShipmentUpdated → Reverb
+            → deep-merges shipment fields into table state (no logs)
+            → updates detailsCache[id] if that row was already expanded
 
   → AdvanceShipmentStatusJob (Redis queue)
       picks up to 15 in-flight shipments
       62% advance  |  3% exception  |  35% hold
       → shipment.update(status=next)
         → ShipmentObserver → ShipmentLog::create()
-        → ShipmentUpdated → Reverb → frontend patches row
+        → ShipmentUpdated → Reverb (same deep-merge)
 ```
 
 Status progression: `packing → shipped → out_for_delivery → delivered`
+
+### Row Expansion + Detail Loading
+
+```
+User expands a row
+  → fetchDetails(transactionId)
+      detailsCache[id] = 'loading'      ← blocks duplicate requests
+      GET /api/transactions/{id}/details
+        → shipment->logs lazy-loaded from DB
+      detailsCache[id] = ShipmentLog[]  ← triggers timeline render
+
+WebSocket ShipmentUpdated arrives while row is open
+  → deep-merge updates shipment fields in table state
+  → if detailsCache[id] exists, replaces logs with latest from event
+  → timeline re-renders with new entry at top — no page refresh needed
+```
 
 ---
 
@@ -138,16 +158,16 @@ app/Console/Commands/
   SimulateTransactions.php     generates transactions with burst mode
 
 routes/
-  web.php                      Inertia Dashboard route, all filters, eager loads
+  web.php                      Inertia Dashboard route + GET /api/transactions/{id}/details
   console.php                  Schedule::job(...)->everyThirtySeconds() × 2
 
 resources/js/
-  types/transaction.ts         Transaction, Shipment, ShipmentLog, FilterState types
-  hooks/useTransactions.ts     TransactionCreated + ShipmentUpdated WebSocket listeners
+  types/transaction.ts         Transaction, Shipment, ShipmentLog, FilterState, DetailsCache types
+  hooks/useTransactions.ts     TransactionCreated + ShipmentUpdated (deep merge) + detailsCache + fetchDetails
   hooks/useConnectionStatus.ts Reverb connection state
   components/
-    TransactionDashboard.tsx   layout, notification bar, filter state
-    TransactionTable.tsx        DataTable + shipment column (carrier + status badge)
+    TransactionDashboard.tsx   layout, notification bar, filter state, threads detailsCache+fetchDetails
+    TransactionTable.tsx        DataTable + row expansion + TrackingTimeline + on-demand detail loading
     FilterSidebar.tsx           account type + brand + shipment status filters
     TotalSumCard.tsx            memoized total
     BrandSummaryCard.tsx        memoized brand breakdown with progress bars
@@ -175,11 +195,11 @@ config/horizon.php             Horizon queue configuration
 | `app.tsx` | Inertia client entry, PrimeReact lara-dark-blue theme |
 | `ssr.tsx` | Inertia SSR entry |
 | `echo.ts` | Laravel Echo / Reverb client |
-| `useTransactions.ts` | WebSocket listener: new transactions + shipment status patches |
+| `useTransactions.ts` | WebSocket listener: new transactions + deep-merge shipment patches + `DetailsCache` + `fetchDetails` |
 | `useConnectionStatus.ts` | Reverb connection health |
 | `Dashboard.tsx` | Inertia page, passes props to dashboard |
-| `TransactionDashboard.tsx` | Layout, filters, notification bar (no Toast) |
-| `TransactionTable.tsx` | PrimeReact DataTable, paginated, sortable, shipment column |
+| `TransactionDashboard.tsx` | Layout, filters, notification bar, threads cache+fetch to table |
+| `TransactionTable.tsx` | DataTable, row expansion, on-demand tracking timeline, loading spinner |
 | `FilterSidebar.tsx` | Account type + brand + shipment status filters |
 | `TotalSumCard.tsx` | Memoized sum with cyan accent |
 | `BrandSummaryCard.tsx` | Memoized brand totals with progress bars |

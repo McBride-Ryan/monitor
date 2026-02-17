@@ -19,9 +19,10 @@ class AdvanceShipmentStatusJob implements ShouldQueue
     public function handle(): void
     {
         Shipment::whereIn('status', ['packing', 'shipped', 'out_for_delivery'])
-            ->inRandomOrder()
-            ->limit(15)
+            ->limit(50) // Pick a pool
             ->get()
+            ->shuffle()
+            ->take(15)
             ->each(function (Shipment $shipment) {
                 $roll = rand(1, 100);
 

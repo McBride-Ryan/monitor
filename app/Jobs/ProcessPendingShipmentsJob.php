@@ -16,7 +16,9 @@ class ProcessPendingShipmentsJob implements ShouldQueue
 
     public function handle(): void
     {
-        $pending = Transaction::doesntHave('shipment')->get();
+        // Don't pull thousands of transactions into memory
+        $query = Transaction::doesntHave('shipment')->limit(200);
+        $pending = $query->get();
 
         if ($pending->isEmpty()) {
             return;

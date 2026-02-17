@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { DataTable, DataTablePageEvent, DataTableSortEvent, DataTableRowToggleEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Transaction, Shipment, ShipmentLog, PaginatedTransactions } from '../types/transaction';
+import { DetailsCache } from '../hooks/useTransactions';
 
 interface TransactionTableProps {
     paginatedData: PaginatedTransactions;
     onPageChange: (page: number, rows: number) => void;
     onSort: (field: string, order: 'asc' | 'desc') => void;
+    detailsCache: DetailsCache;
+    fetchDetails: (transactionId: number) => void;
 }
 
 function formatCurrency(amount: string) {
@@ -124,8 +127,27 @@ function TrackingTimeline({ logs }: { logs: ShipmentLog[] }) {
     );
 }
 
-function RowExpansion({ row }: { row: Transaction }) {
+function RowExpansion({ row, cachedLogs }: {
+    row: Transaction;
+    cachedLogs: ShipmentLog[] | 'loading' | undefined;
+}) {
     const s = row.shipment;
+
+    const timeline = () => {
+        if (!s) return <p style={{ color: '#475569', fontSize: '0.875rem' }}>No shipment assigned yet.</p>;
+        if (cachedLogs === 'loading') return (
+            <div className="flex items-center gap-2" style={{ color: '#475569', fontSize: '0.8rem' }}>
+                <span style={{
+                    width: '12px', height: '12px', borderRadius: '50%',
+                    border: '2px solid #334155', borderTopColor: '#06b6d4',
+                    display: 'inline-block', animation: 'spin 0.8s linear infinite',
+                }} />
+                Loading tracking history…
+            </div>
+        );
+        if (Array.isArray(cachedLogs)) return <TrackingTimeline logs={cachedLogs} />;
+        return <p style={{ color: '#475569', fontSize: '0.875rem' }}>Expand to load tracking history.</p>;
+    };
 
     return (
         <div style={{ background: '#080f1e', padding: '1.5rem', borderTop: '1px solid #1e293b' }}>
@@ -148,28 +170,10 @@ function RowExpansion({ row }: { row: Transaction }) {
                             <dd style={{ color: '#06b6d4', fontWeight: 700 }}>{formatCurrency(row.amount)}</dd>
                             <dt style={{ color: '#64748b' }}>Time</dt>
                             <dd style={{ color: '#e2e8f0' }}>{formatDate(row.timestamp)}</dd>
-                            <dt style={{ color: '#64748b' }}>Tx Status</dt>
-                            <dd>
-                                {row.logs?.[0] ? (
-                                    <span style={{
-                                        fontSize: '0.7rem',
-                                        fontWeight: 600,
-                                        padding: '1px 7px',
-                                        borderRadius: '9999px',
-                                        display: 'inline-block',
-                                    }} className={
-                                        row.logs[0].status === 'success'
-                                            ? 'bg-green-900 text-green-300'
-                                            : 'bg-red-900 text-red-300'
-                                    }>
-                                        {row.logs[0].status}
-                                    </span>
-                                ) : '—'}
-                            </dd>
                         </dl>
                     </section>
 
-                    {s ? (
+                    {s && (
                         <section>
                             <p style={{ color: '#475569', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
                                 Shipment
@@ -187,8 +191,6 @@ function RowExpansion({ row }: { row: Transaction }) {
                                 </dd>
                             </dl>
                         </section>
-                    ) : (
-                        <p style={{ color: '#475569', fontSize: '0.875rem' }}>No shipment assigned yet.</p>
                     )}
                 </div>
 
@@ -197,7 +199,7 @@ function RowExpansion({ row }: { row: Transaction }) {
                     <p style={{ color: '#475569', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem' }}>
                         Tracking History
                     </p>
-                    <TrackingTimeline logs={s?.logs ?? []} />
+                    {timeline()}
                 </div>
             </div>
         </div>
@@ -207,7 +209,9 @@ function RowExpansion({ row }: { row: Transaction }) {
 export default function TransactionTable({
     paginatedData,
     onPageChange,
-    onSort
+    onSort,
+    detailsCache,
+    fetchDetails,
 }: TransactionTableProps) {
     const [expandedRows, setExpandedRows] = useState<{ [key: string]: boolean }>({});
 
@@ -221,7 +225,12 @@ export default function TransactionTable({
     };
 
     const handleRowToggle = (e: DataTableRowToggleEvent) => {
-        setExpandedRows(e.data as { [key: string]: boolean });
+        const next = e.data as { [key: string]: boolean };
+        setExpandedRows(next);
+        // Fetch details for any row being opened
+        Object.entries(next).forEach(([idStr, open]) => {
+            if (open) fetchDetails(Number(idStr));
+        });
     };
 
     return (
@@ -245,15 +254,13 @@ export default function TransactionTable({
                 className="p-datatable-sm"
                 expandedRows={expandedRows}
                 onRowToggle={handleRowToggle}
-                rowExpansionTemplate={(row) => <RowExpansion row={row as Transaction} />}
+                rowExpansionTemplate={(row) => {
+                    const tx = row as Transaction;
+                    return <RowExpansion row={tx} cachedLogs={detailsCache[tx.id]} />;
+                }}
             >
                 <Column expander style={{ width: '3rem' }} />
-                <Column
-                    field="id"
-                    header="ID"
-                    sortable
-                    style={{ width: '70px' }}
-                />
+                <Column field="id" header="ID" sortable style={{ width: '70px' }} />
                 <Column
                     field="timestamp"
                     header="Time"
@@ -287,21 +294,6 @@ export default function TransactionTable({
                     )}
                 />
                 <Column field="order_origin" header="Brand" sortable />
-                {/* <Column
-                    header="Tx Status"
-                    body={(row: Transaction) => {
-                        const log = row.logs?.[0];
-                        return log ? (
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                log.status === 'success'
-                                    ? 'bg-green-900 text-green-300'
-                                    : 'bg-red-900 text-red-300'
-                            }`}>
-                                {log.status}
-                            </span>
-                        ) : '—';
-                    }}
-                /> */}
                 <Column
                     header="Shipment"
                     body={(row: Transaction) => <ShipmentCell shipment={row.shipment} />}

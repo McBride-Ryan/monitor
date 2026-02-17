@@ -20,7 +20,7 @@ export default function TransactionDashboard({
     initialFilters,
     summary
 }: Props) {
-    const { paginatedData, pendingCount, clearPending } = useTransactions({
+    const { paginatedData, pendingCount, clearPending, detailsCache, fetchDetails } = useTransactions({
         initialData,
         filters: initialFilters,
     });
@@ -143,6 +143,8 @@ export default function TransactionDashboard({
                             paginatedData={paginatedData}
                             onPageChange={handlePageChange}
                             onSort={handleSort}
+                            detailsCache={detailsCache}
+                            fetchDetails={fetchDetails}
                         />
                     </div>
                 </div>
