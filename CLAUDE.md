@@ -50,6 +50,10 @@ npm run build  # production build with SSR
 npm run dev    # dev server with HMR
 ```
 
+### Custom Slash Commands
+
+`/performance-optimization [file-or-path]` — analyzes code for DB query issues (N+1, missing indexes, unbounded queries), algorithm efficiency (O(n²) loops, linear scans), memory management (unbounded accumulation, stale closures), and caching opportunities (Redis, useMemo, HTTP cache headers). Outputs a severity-ranked summary table with before/after fixes for high-severity findings.
+
 ## Architecture
 
 ### Backend Pattern: Observer + Event Broadcasting
