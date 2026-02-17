@@ -29,11 +29,13 @@ export default function FilterSidebar({
     onOrderOriginsChange,
 }: FilterSidebarProps) {
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-            <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Filters</p>
+        <div className="rounded-xl p-6 space-y-4" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+            <p className="text-xs font-medium uppercase tracking-widest" style={{ color: '#64748b' }}>Filters</p>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: '#94a3b8' }}>
+                    Account Type
+                </label>
                 <Dropdown
                     value={accountType}
                     options={accountTypeOptions}
@@ -46,7 +48,9 @@ export default function FilterSidebar({
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: '#94a3b8' }}>
+                    Brand
+                </label>
                 <MultiSelect
                     value={orderOrigins}
                     options={originOptions}

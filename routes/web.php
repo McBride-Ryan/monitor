@@ -44,7 +44,7 @@ Route::get('/', function (Request $request) {
 
     // Apply sort and paginate
     $transactions = $query->orderBy($sortField, $sortOrder)
-        ->paginate($request->query('per_page', 20));
+        ->paginate($request->query('per_page', 10));
 
     return Inertia::render('Dashboard', [
         'transactions' => $transactions,

@@ -1,21 +1,32 @@
 import { ConnectionStatus } from '../hooks/useConnectionStatus';
 
-const statusConfig: Record<ConnectionStatus, { bg: string; text: string; label: string }> = {
-    connected: { bg: 'bg-green-100', text: 'text-green-800', label: 'Live' },
-    connecting: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Connecting...' },
-    disconnected: { bg: 'bg-red-100', text: 'text-red-800', label: 'Disconnected — updates paused' },
+const dotColor: Record<ConnectionStatus, string> = {
+    connected: '#22c55e',
+    connecting: '#eab308',
+    disconnected: '#ef4444',
+};
+
+const label: Record<ConnectionStatus, string> = {
+    connected: 'Live',
+    connecting: 'Connecting...',
+    disconnected: 'Disconnected — updates paused',
 };
 
 export default function ConnectionStatusBanner({ status }: { status: ConnectionStatus }) {
-    const config = statusConfig[status];
-
     return (
-        <div className={`${config.bg} ${config.text} px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2`}>
-            <span className={`inline-block w-2 h-2 rounded-full ${
-                status === 'connected' ? 'bg-green-500' :
-                status === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
-            }`} />
-            {config.label}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium"
+            style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8' }}>
+            <span
+                className={status === 'connected' ? 'animate-pulse-dot' : ''}
+                style={{
+                    display: 'inline-block',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: dotColor[status],
+                }}
+            />
+            {label[status]}
         </div>
     );
 }

@@ -11,9 +11,15 @@ export default function TotalSumCard({ totalSum }: Props) {
     }).format(totalSum);
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Total Amount</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">
+        <div className="rounded-xl p-6" style={{
+            background: '#1e293b',
+            borderTop: '2px solid #06b6d4',
+            border: '1px solid #334155',
+        }}>
+            <p className="text-xs font-medium uppercase tracking-widest" style={{ color: '#64748b' }}>
+                Total Amount
+            </p>
+            <p className="text-3xl font-bold mt-2" style={{ color: '#06b6d4' }}>
                 {formatted}
             </p>
         </div>

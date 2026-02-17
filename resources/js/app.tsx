@@ -2,7 +2,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 
-import 'primereact/resources/themes/lara-light-blue/theme.css';
+import 'primereact/resources/themes/lara-dark-blue/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 
