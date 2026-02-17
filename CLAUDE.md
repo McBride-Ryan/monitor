@@ -1,225 +1,90 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Overview
-
-Real-time transaction monitoring system with async shipment tracking. Laravel + Inertia SSR + React/TypeScript + PrimeReact + Laravel Reverb WebSockets + Laravel Horizon.
+Real-time transaction monitoring: Laravel 12 + Inertia SSR + React 19/TypeScript + PrimeReact + Reverb WebSockets + Horizon.
 
 ## Commands
 
-### Development
 ```bash
-# With Docker (recommended)
+# Docker (recommended)
 ./vendor/bin/sail up -d
-./vendor/bin/sail artisan reverb:start       # terminal 1
-./vendor/bin/sail artisan horizon            # terminal 2 (queue worker + job monitoring)
-./vendor/bin/sail artisan schedule:work      # terminal 3 (runs shipment jobs every 30s)
-./vendor/bin/sail npm run dev                # terminal 4
-./vendor/bin/sail artisan app:simulate-transactions  # terminal 5 (optional)
+./vendor/bin/sail artisan reverb:start       # WS server
+./vendor/bin/sail artisan horizon            # queue worker
+./vendor/bin/sail artisan schedule:work      # shipment jobs every 30s
+./vendor/bin/sail npm run dev
+./vendor/bin/sail artisan app:simulate-transactions  # optional test data
 
 # Without Docker
-composer dev  # runs server, horizon, logs, vite concurrently
-php artisan reverb:start    # separate terminal
-php artisan schedule:work   # separate terminal
+composer dev                 # server + horizon + logs + vite concurrently
+php artisan reverb:start     # separate terminal
+php artisan schedule:work    # separate terminal
+composer setup               # first-time: install, key, migrate, build
+composer test
 ```
 
-### Setup
-```bash
-# With Docker
-cp .env.example .env
-./vendor/bin/sail up -d
-./vendor/bin/sail artisan migrate --seed
-
-# Without Docker
-composer setup  # installs deps, generates key, migrates, builds assets
-```
-
-### Testing
-```bash
-composer test  # or: php artisan test
-```
-
-### Database
-```bash
-php artisan migrate
-php artisan migrate --seed
-php artisan app:simulate-transactions  # generates test data + broadcasts
-```
-
-### Build
-```bash
-npm run build  # production build with SSR
-npm run dev    # dev server with HMR
-```
-
-### Custom Slash Commands
-
-`/performance-optimization [file-or-path]` — analyzes code for DB query issues (N+1, missing indexes, unbounded queries), algorithm efficiency (O(n²) loops, linear scans), memory management (unbounded accumulation, stale closures), and caching opportunities (Redis, useMemo, HTTP cache headers). Outputs a severity-ranked summary table with before/after fixes for high-severity findings.
+**Custom slash command**: `/performance-optimization [path]` — ranks perf issues (N+1, indexes, O(n²), memory, caching) with before/after fixes.
 
 ## Architecture
 
-### Backend Pattern: Observer + Event Broadcasting
+### Backend: Observer + Event Broadcasting
 
-**Transactions:**
-1. **Transaction created** → `TransactionObserver::created()` fires
-2. **Observer** auto-creates `TransactionLog` entry (1:1 relationship)
-3. **TransactionCreated** event dispatches with `ShouldBroadcastNow`
-4. **Reverb** broadcasts to `transactions` channel
+**Transactions**: `Transaction::create()` → `TransactionObserver::created()` → `TransactionLog::create()` (1:1) + `TransactionCreated` broadcast (`ShouldBroadcastNow`, `transactions` channel).
 
-Key: Every Transaction MUST have exactly one TransactionLog. Observer enforces this.
+**Shipments (async)**: Scheduler fires two jobs every 30s (`routes/console.php`):
+- `ProcessPendingShipmentsJob` — ships 50–75% of unshipped → `ShipmentObserver::created()` → `ShipmentLog` + `ShipmentUpdated` broadcast
+- `AdvanceShipmentStatusJob` — advances ≤15 in-flight (62% progress / 3% exception / 35% no-op) → `ShipmentObserver::updated()` → new `ShipmentLog` + broadcast
 
-**Shipments (async pipeline):**
-1. **Scheduler** fires `ProcessPendingShipmentsJob` every 30s → queued to Redis
-2. **Job** picks 50–75% of unshipped transactions (rest held for next batch — simulates delays)
-3. **Shipment::create()** → `ShipmentObserver::created()` → `ShipmentLog::create()` + `ShipmentUpdated` broadcast
-4. **Scheduler** also fires `AdvanceShipmentStatusJob` every 30s
-5. **Job** picks up to 15 in-flight shipments, rolls: 62% advance status, 3% exception, 35% no change
-6. **Status change** → `ShipmentObserver::updated()` → new `ShipmentLog` + `ShipmentUpdated` broadcast
+`shipments.transaction_id` UNIQUE prevents race duplicates. Queue: Redis + Horizon (`/horizon` dashboard).
 
-Key: `shipments.transaction_id` has UNIQUE constraint — prevents race-condition duplicates.
+Status progression: `packing → shipped → out_for_delivery → delivered` (3% chance → `exception` at any step)
 
-### Queue / Horizon
+### Frontend: Inertia SSR + Real-Time Merging + On-Demand Detail Loading
 
-- **Queue driver**: Redis (already in Docker stack)
-- **Worker**: Laravel Horizon (`php artisan horizon`) — replaces `queue:work`
-- **Dashboard**: `http://localhost/horizon` — job throughput, failures, retry UI
-- **Scheduled jobs**: `routes/console.php` via `Schedule::job(...)->everyThirtySeconds()`
-
-### Frontend Pattern: Inertia SSR + Real-Time Merging + On-Demand Detail Loading
-
-- **Initial load**: `routes/web.php` → `Inertia::render('Dashboard')` with `with(['logs', 'shipment'])` — `shipment_logs` intentionally excluded to keep page payload lean
-- **SSR**: `resources/js/ssr.tsx` renders server-side for SEO/performance
-- **Real-time (transactions)**: `useTransactions` hook listens to Reverb, prepends new txns to state
-- **Real-time (shipments)**: `ShipmentUpdated` deep merge — splits `{ logs, ...shipmentFields }`, patches `tx.shipment` scalar fields into `paginatedData` without touching `shipment_logs`, and separately updates `detailsCache` if that transaction's details are already loaded
-- **On-demand detail loading**: expanding a row triggers `fetchDetails(id)` → `GET /api/transactions/{id}/details` → cached in `DetailsCache = Record<number, ShipmentLog[] | 'loading'>`. The `'loading'` sentinel prevents duplicate in-flight requests. Cache cleared on filter/page change.
-- **Memoization**: `TotalSumCard` and `BrandSummaryCard` use `useMemo` for expensive calculations during burst loads
+- Initial load: lean payload (no `shipment_logs`) via `Inertia::render('Dashboard')`
+- `useTransactions` hook: prepends new txns on `TransactionCreated`; deep-merges `ShipmentUpdated` scalar fields into `paginatedData`; updates `detailsCache[id]` if already loaded
+- Row expand → `fetchDetails(id)` → `GET /api/transactions/{id}/details` → `DetailsCache = Record<number, ShipmentLog[] | 'loading'>` sentinel prevents duplicate requests; cache cleared on filter/page change
+- `TotalSumCard`, `BrandSummaryCard`: `useMemo` for burst-load aggregations
 
 ### Filtering Rules
 
-**CRITICAL**: Account type filter with "All" selected (value: null) MUST return ALL account types: checking, savings, and credit.
+**CRITICAL**: `account_type` null → `whereIn('account_type', ['checking','savings','credit'])` (all types). Never return empty set.
 
-- Backend `routes/web.php` defaults to `whereIn('account_type', ['checking', 'savings', 'credit'])` when no `account_types` param or null/empty value
-- Frontend FilterSidebar Dropdown uses `optionLabel="label"` and `optionValue="value"` to properly extract values
-- When `account_type` is null, the query param is omitted entirely to trigger default behavior
-
-**Shipment status filter:**
-- `shipment_status=unshipped` → `doesntHave('shipment')` (no shipment row yet)
-- `shipment_status=packing|shipped|out_for_delivery|delivered|exception` → `whereHas('shipment', ...)`
-- `shipment_status` absent/null → no filter applied
-
-### Data Flow
-
-```
-SimulateTransactions command
-  → Transaction::factory()->create()
-    → TransactionObserver::created()
-      → TransactionLog::create()
-    → TransactionCreated::dispatch()
-      → Reverb broadcast → frontend prepends to state
-
-Scheduler (every 30s)
-  → ProcessPendingShipmentsJob (Redis queue)
-    → Shipment::create() for 50-75% of unshipped
-      → ShipmentObserver::created()
-        → ShipmentLog::create()
-        → ShipmentUpdated::dispatch()
-          → Reverb broadcast
-            → useTransactions: deep-merges shipment fields into paginatedData
-            → useTransactions: updates detailsCache[id] if cached
-
-  → AdvanceShipmentStatusJob (Redis queue)
-    → shipment.update(status=next) for up to 15 in-flight
-      → ShipmentObserver::updated()
-        → ShipmentLog::create()
-        → ShipmentUpdated::dispatch()
-          → Reverb broadcast (same deep-merge as above)
-
-Row expand (user action)
-  → fetchDetails(transactionId)
-    → detailsCache[id] = 'loading'  ← blocks duplicate fetches
-    → GET /api/transactions/{id}/details
-      → shipment->logs lazy-loaded
-      → detailsCache[id] = ShipmentLog[]
-        → RowExpansion renders timeline
-```
+Shipment filter: `unshipped` → `doesntHave('shipment')`; named statuses → `whereHas('shipment', ...)`; null → no filter applied.
 
 ### Key Files
 
-- **Models**: `app/Models/Transaction.php`, `TransactionLog.php`, `Shipment.php`, `ShipmentLog.php`
-- **Observers**: `app/Observers/TransactionObserver.php`, `ShipmentObserver.php` (registered in `AppServiceProvider`)
-- **Events**: `app/Events/TransactionCreated.php`, `ShipmentUpdated.php` (both on `transactions` channel; `ShipmentUpdated` uses `ShouldBroadcast` queued via Redis)
-- **Jobs**: `app/Jobs/ProcessPendingShipmentsJob.php`, `AdvanceShipmentStatusJob.php`
-- **Simulator**: `app/Console/Commands/SimulateTransactions.php` (bursts every 10th iteration)
-- **Scheduler**: `routes/console.php` (both shipment jobs, `everyThirtySeconds()`)
-- **Routes**: `routes/web.php` — Inertia dashboard + `GET /api/transactions/{id}/details` lazy detail endpoint
-- **Frontend hooks**: `resources/js/hooks/useTransactions.ts` — `TransactionCreated`, `ShipmentUpdated` (deep merge), `DetailsCache`, `fetchDetails`
-- **Echo config**: `resources/js/echo.ts` (Reverb WebSocket client)
-- **Horizon config**: `config/horizon.php`
+- **Models**: `app/Models/{Transaction,TransactionLog,Shipment,ShipmentLog}.php`
+- **Observers**: `app/Observers/{Transaction,Shipment}Observer.php` (registered in `AppServiceProvider`)
+- **Events**: `app/Events/{TransactionCreated,ShipmentUpdated}.php` (both on `transactions` channel; `ShipmentUpdated` queued via Redis)
+- **Jobs**: `app/Jobs/{ProcessPendingShipments,AdvanceShipmentStatus}Job.php`
+- **Scheduler**: `routes/console.php` | **Routes**: `routes/web.php`
+- **Frontend hook**: `resources/js/hooks/useTransactions.ts` | **WS client**: `resources/js/echo.ts`
+- **Types**: `resources/js/types/transaction.ts` | **Horizon**: `config/horizon.php`
 
 ### Database Schema
 
-**transactions**: id, timestamp, amount, description, account_type (checking/savings/credit), order_origin (Brand_1-4)
-**transactions index**: timestamp, account_type, order_origin
+- **transactions**: id, timestamp, amount, description, account_type (checking/savings/credit), order_origin (Brand_1–4); idx: timestamp, account_type, order_origin
+- **transaction_logs**: id, transaction_id FK, origin, status, logged_at — 1:1 with transaction
+- **shipments**: id, transaction_id FK UNIQUE, carrier (fedex/ups/usps/dhl), tracking_number UNIQUE, status, estimated_delivery; idx: status
+- **shipment_logs**: id, shipment_id FK, status, location, message, logged_at; idx: shipment_id — 1:many (full history)
 
-**transaction_logs**: id, transaction_id (FK), origin, status, logged_at
+### React Components
 
-**shipments**: id, transaction_id (FK UNIQUE), carrier (fedex/ups/usps/dhl), tracking_number (UNIQUE), status (packing/shipped/out_for_delivery/delivered/exception), estimated_delivery, timestamps
-**shipments index**: status
+`Dashboard.tsx` → `TransactionDashboard.tsx` (filters, cards, table, notification bar; threads `detailsCache`+`fetchDetails`) → `TransactionTable.tsx` (DataTable, row expand, `RowExpansion`+`TrackingTimeline`, spinner on `'loading'`)
 
-**shipment_logs**: id, shipment_id (FK), status, location, message, logged_at, timestamps
-**shipment_logs index**: shipment_id
+Also: `FilterSidebar.tsx`, `TotalSumCard.tsx`, `BrandSummaryCard.tsx`, `ConnectionStatusBanner.tsx`
 
-### Shipment Status Progression
+### TypeScript Types (`resources/js/types/transaction.ts`)
 
-```
-packing → shipped → out_for_delivery → delivered
-                                     ↘ exception (3% chance at any step)
-```
-
-Each status change appends a new `ShipmentLog` row (1:many — tracking history, unlike TransactionLog which is 1:1).
-
-### React Components Structure
-
-- `Dashboard.tsx` (Inertia page) → passes initial data
-- `TransactionDashboard.tsx` (layout) → orchestrates filters, cards, table; inline notification bar; threads `detailsCache` + `fetchDetails` from hook down to table
-- `TransactionTable.tsx` (PrimeReact DataTable) → pagination, sorting, shipment column; row expansion with `RowExpansion` + `TrackingTimeline`; calls `fetchDetails` on expand; shows spinner while `'loading'`
-- `FilterSidebar.tsx` → account_type dropdown + brand multiselect + shipment status dropdown
-- `TotalSumCard.tsx`, `BrandSummaryCard.tsx` → memoized aggregations
-- `ConnectionStatusBanner.tsx` → Reverb health indicator with CSS pulse animation
-
-### TypeScript Types
-
-Defined in `resources/js/types/transaction.ts`:
-- `Transaction` — includes `shipment?: Shipment | null` (no `shipment_logs` in page payload)
-- `Shipment` — carrier, tracking_number, status, estimated_delivery, `logs?` (optional; only present in WebSocket payload or API response)
-- `ShipmentLog` — status, location, message, logged_at
-- `FilterState` — includes `shipment_status: string | null`
-- `ShipmentStatus` type: `'packing' | 'shipped' | 'out_for_delivery' | 'delivered' | 'exception'`
-- `Carrier` type: `'fedex' | 'ups' | 'usps' | 'dhl'`
-
-Defined in `resources/js/hooks/useTransactions.ts`:
-- `DetailsCache = Record<number, ShipmentLog[] | 'loading'>` — exported for use in `TransactionTable`
+- `Transaction`: `shipment?: Shipment | null` (no logs in page payload)
+- `Shipment`: carrier, tracking_number, status, estimated_delivery, `logs?` (WS/API response only)
+- `ShipmentLog`: status, location, message, logged_at
+- `FilterState`: includes `shipment_status: string | null`
+- `DetailsCache = Record<number, ShipmentLog[] | 'loading'>` (exported from `useTransactions.ts`)
 
 ### UI Theme
 
-Dark fintech aesthetic (`lara-dark-blue` PrimeReact theme):
-- Background: `#0f172a` (deep slate)
-- Surfaces: `#1e293b` (medium slate)
-- Accent: `#06b6d4` (electric cyan) — amounts, progress bars, top border on TotalSumCard
-- Notification bar: fixed top, cyan bg, slides in via `animate-slide-down`
-- Connection dot: CSS `animate-pulse-dot` when live
+`lara-dark-blue` PrimeReact: bg `#0f172a`, surfaces `#1e293b`, accent `#06b6d4` (cyan). Notification bar: fixed top, cyan bg, `animate-slide-down`. Connection dot: `animate-pulse-dot`.
 
 ## Docker
 
-- **Services**: laravel.test (PHP 8.5 + Node), mysql, redis
-- **Reverb**: port 8080 (exposed in compose.yaml)
-- **Sail**: Laravel's Docker wrapper (`./vendor/bin/sail`)
-
-## Tech Stack
-
-- **Backend**: Laravel 12, PHP 8.2+
-- **Queue**: Redis + Laravel Horizon
-- **Frontend**: React 19, TypeScript, Inertia.js, PrimeReact, Tailwind CSS 4
-- **Real-time**: Laravel Reverb (WebSockets), Laravel Echo, Pusher.js
-- **Dev tools**: Vite 7, Laravel Pint (linting), PHPUnit, Sail (Docker)
+Services: `laravel.test` (PHP 8.5 + Node), `mysql`, `redis`. Reverb on port 8080. Sail = `./vendor/bin/sail`.
