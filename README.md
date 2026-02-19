@@ -16,7 +16,7 @@ Real-time transaction monitoring system with async shipment tracking pipeline. B
 - **On-demand detail loading** — shipment logs fetched lazily per row (not on page load); cached to avoid re-fetching; WebSocket updates merge into cache live
 - **Filtering** — by account type, brand, and shipment status (including "unshipped")
 - **Horizon dashboard** — full job queue observability at `/horizon`
-- **Dark fintech UI** — deep slate + electric cyan aesthetic, PrimeReact `lara-dark-blue` theme
+- **Dark UI** — deep slate + electric cyan aesthetic, PrimeReact `lara-dark-blue` theme
 
 ---
 
