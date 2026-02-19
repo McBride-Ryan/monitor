@@ -1,6 +1,20 @@
+---
+description: Analyze performance and opportunities to optimize
+argument-hint: File name | File Summary
+---
+
 # Performance Optimization
 
-Analyze the provided code for performance bottlenecks and optimization opportunities. Conduct a thorough review covering:
+## Context 
+
+Parse $ARGUMENTS to get the following:
+
+- [name]: File name from $ARGUMENTS
+- [summary]: File Summary from $ARGUMENTS
+
+## Task 
+
+Conduct a thorough review covering
 
 ## Areas to Analyze
 
